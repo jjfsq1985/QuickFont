@@ -204,3 +204,4 @@ bin/
 
 # Packages
 packages/
+/PROJECT_STRUCTURE.md

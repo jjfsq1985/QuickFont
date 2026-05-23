@@ -116,15 +116,15 @@ namespace QuickFont
             return false;
         }
 
-		/// <summary>
-		/// Creates the initial font bitmap. This is simply a long thin strip of all glyphs in a row
-		/// </summary>
-		/// <param name="font">The <see cref="IFont"/> object to build the initial bitmap from</param>
-		/// <param name="maxSize">The maximum glyph size of the font</param>
-		/// <param name="initialMargin">The initial bitmap margin (used for all four sides)</param>
-		/// <param name="glyphs">A collection of <see cref="QFontGlyph"/>s corresponding to the initial bitmap</param>
-		/// <param name="renderHint">The font rendering hint to use</param>
-		/// <returns></returns>
+        /// <summary>
+        /// Creates the initial font bitmap. This is simply a long thin strip of all glyphs in a row
+        /// </summary>
+        /// <param name="font">The <see cref="IFont"/> object to build the initial bitmap from</param>
+        /// <param name="maxSize">The maximum glyph size of the font</param>
+        /// <param name="initialMargin">The initial bitmap margin (used for all four sides)</param>
+        /// <param name="glyphs">A collection of <see cref="QFontGlyph"/>s corresponding to the initial bitmap</param>
+        /// <param name="renderHint">The font rendering hint to use</param>
+        /// <returns></returns>
         private Bitmap CreateInitialBitmap(IFont font, SizeF maxSize, int initialMargin, out QFontGlyph[] glyphs, TextGenerationRenderHint renderHint, List<SizeF> sizes)
         {
             glyphs = new QFontGlyph[_charSet.Length];
@@ -143,49 +143,50 @@ namespace QuickFont
             using (Graphics graph = Graphics.FromImage(bmp))
             {
 
-            switch(renderHint){
-                case TextGenerationRenderHint.SizeDependent: 
-                    graph.TextRenderingHint = font.Size <= 12.0f  ? TextRenderingHint.ClearTypeGridFit : TextRenderingHint.AntiAlias; 
-                    break;
-                case TextGenerationRenderHint.AntiAlias: 
-                    graph.TextRenderingHint = TextRenderingHint.AntiAlias; 
-                    break;
-                case TextGenerationRenderHint.AntiAliasGridFit: 
-                    graph.TextRenderingHint = TextRenderingHint.AntiAliasGridFit; 
-                    break;
-                case TextGenerationRenderHint.ClearTypeGridFit:
-                    graph.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-                    break;
-                case TextGenerationRenderHint.SystemDefault:
-                    graph.TextRenderingHint = TextRenderingHint.SystemDefault;
-                    break;
+                switch (renderHint)
+                {
+                    case TextGenerationRenderHint.SizeDependent:
+                        graph.TextRenderingHint = font.Size <= 12.0f ? TextRenderingHint.ClearTypeGridFit : TextRenderingHint.AntiAlias;
+                        break;
+                    case TextGenerationRenderHint.AntiAlias:
+                        graph.TextRenderingHint = TextRenderingHint.AntiAlias;
+                        break;
+                    case TextGenerationRenderHint.AntiAliasGridFit:
+                        graph.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                        break;
+                    case TextGenerationRenderHint.ClearTypeGridFit:
+                        graph.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+                        break;
+                    case TextGenerationRenderHint.SystemDefault:
+                        graph.TextRenderingHint = TextRenderingHint.SystemDefault;
+                        break;
+                }
+
+                // enable high quality graphics
+                graph.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                graph.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                graph.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
+
+                for (int i = 0; i < _charSet.Length; i++)
+                {
+                    int row = i / cols;
+                    int col = i % cols;
+
+                    int x = col * cellWidth + initialMargin;
+                    int y = row * cellHeight + initialMargin;
+
+                    string s = _charSet[i].ToString();
+                    var offset = font.DrawString(s, graph, Brushes.White, x, y);
+                    var charSize = (sizes != null && i < sizes.Count) ? sizes[i] : font.MeasureString(s, graph);
+
+                    int rectX = col * cellWidth + offset.X;
+                    int rectY = row * cellHeight + offset.Y;
+                    int rectWidth = (int)charSize.Width + 2 * initialMargin;
+                    int rectHeight = (int)charSize.Height + 2 * initialMargin;
+
+                    glyphs[i] = new QFontGlyph(0, new Rectangle(rectX, rectY, rectWidth, rectHeight), 0, _charSet[i]);
+                }
             }
-
-			// enable high quality graphics
-			graph.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-			graph.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-			graph.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceOver;
-
-            for (int i = 0; i < _charSet.Length; i++)
-            {
-                int row = i / cols;
-                int col = i % cols;
-
-                int x = col * cellWidth + initialMargin;
-                int y = row * cellHeight + initialMargin;
-
-                string s = _charSet[i].ToString();
-                var offset = font.DrawString(s, graph, Brushes.White, x, y);
-                var charSize = (sizes != null && i < sizes.Count) ? sizes[i] : font.MeasureString(s, graph);
-
-                int rectX = col * cellWidth + offset.X;
-                int rectY = row * cellHeight + offset.Y;
-                int rectWidth = (int)charSize.Width + 2 * initialMargin;
-                int rectHeight = (int)charSize.Height + 2 * initialMargin;
-
-                glyphs[i] = new QFontGlyph(0, new Rectangle(rectX, rectY, rectWidth, rectHeight), 0, _charSet[i]);
-            }
-
             // Graphics disposed by using
             return bmp;
         }
