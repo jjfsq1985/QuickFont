@@ -45,20 +45,19 @@ namespace QuickFont
             // For now we scale it with font size
             int padding = 5 + (int)(0.1 * font.Size);
 
-            Bitmap bmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);
-            Graphics graph = Graphics.FromImage(bmp);
-            List<SizeF> sizes = new List<SizeF>();
-
-            foreach (char t in _charSet)
+            using (Bitmap bmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb))
+            using (Graphics graph = Graphics.FromImage(bmp))
             {
-	            var charSize = font.MeasureString("" + t, graph);
-	            sizes.Add(new SizeF(charSize.Width+padding, charSize.Height+padding));
+                var sizes = new List<SizeF>(_charSet.Length);
+
+                foreach (char t in _charSet)
+                {
+                    var charSize = font.MeasureString(t.ToString(), graph);
+                    sizes.Add(new SizeF(charSize.Width + padding, charSize.Height + padding));
+                }
+
+                return sizes;
             }
-
-            graph.Dispose();
-            bmp.Dispose();
-
-            return sizes;
         }
 
 		/// <summary>
@@ -126,7 +125,7 @@ namespace QuickFont
 		/// <param name="glyphs">A collection of <see cref="QFontGlyph"/>s corresponding to the initial bitmap</param>
 		/// <param name="renderHint">The font rendering hint to use</param>
 		/// <returns></returns>
-        private Bitmap CreateInitialBitmap(IFont font, SizeF maxSize, int initialMargin, out QFontGlyph[] glyphs, TextGenerationRenderHint renderHint)
+        private Bitmap CreateInitialBitmap(IFont font, SizeF maxSize, int initialMargin, out QFontGlyph[] glyphs, TextGenerationRenderHint renderHint, List<SizeF> sizes)
         {
             glyphs = new QFontGlyph[_charSet.Length];
 
@@ -141,7 +140,8 @@ namespace QuickFont
             int actualHeight = Math.Min(rows * cellHeight, MAX_TEXTURE_SIZE);
 
             Bitmap bmp = new Bitmap(actualWidth, actualHeight, PixelFormat.Format24bppRgb);
-            Graphics graph = Graphics.FromImage(bmp);
+            using (Graphics graph = Graphics.FromImage(bmp))
+            {
 
             switch(renderHint){
                 case TextGenerationRenderHint.SizeDependent: 
@@ -174,21 +174,19 @@ namespace QuickFont
                 int x = col * cellWidth + initialMargin;
                 int y = row * cellHeight + initialMargin;
 
-
-                var offset = font.DrawString("" + _charSet[i], graph, Brushes.White, x, y);
-                var charSize = font.MeasureString("" + _charSet[i], graph);
+                string s = _charSet[i].ToString();
+                var offset = font.DrawString(s, graph, Brushes.White, x, y);
+                var charSize = (sizes != null && i < sizes.Count) ? sizes[i] : font.MeasureString(s, graph);
 
                 int rectX = col * cellWidth + offset.X;
                 int rectY = row * cellHeight + offset.Y;
                 int rectWidth = (int)charSize.Width + 2 * initialMargin;
                 int rectHeight = (int)charSize.Height + 2 * initialMargin;
 
-                glyphs[i] = new QFontGlyph(0, new Rectangle(rectX,rectY, rectWidth, rectHeight), 0, _charSet[i]);
+                glyphs[i] = new QFontGlyph(0, new Rectangle(rectX, rectY, rectWidth, rectHeight), 0, _charSet[i]);
             }
 
-            graph.Flush();
-            graph.Dispose();
-
+            // Graphics disposed by using
             return bmp;
         }
 
@@ -514,23 +512,23 @@ namespace QuickFont
             QFontGlyph[] initialGlyphs;
             var sizes = GetGlyphSizes(_font);
             var maxSize = GetMaxGlyphSize(sizes);
-            var initialBmp = CreateInitialBitmap(_font, maxSize, margin, out initialGlyphs,_config.TextGenerationRenderHint);
+            var initialBmp = CreateInitialBitmap(_font, maxSize, margin, out initialGlyphs, _config.TextGenerationRenderHint, sizes);
 
-#if DEBUG 
-			// print bitmap with bounds to debug it
-			var debugBmp = initialBmp.Clone() as Bitmap;
-			var graphics = Graphics.FromImage(debugBmp);
-			var pen = new Pen(Color.Red, 1);
+#if DEBUG
+            // print bitmap with bounds to debug it
+            var debugBmp = initialBmp.Clone() as Bitmap;
+            using (var graphics = Graphics.FromImage(debugBmp))
+            using (var pen = new Pen(Color.Red, 1))
+            {
+                foreach (var g in initialGlyphs)
+                {
+                    graphics.DrawRectangle(pen, g.Rect);
+                }
 
-			foreach (var g in initialGlyphs)
-			{
-				graphics.DrawRectangle(pen, g.Rect);
-			}
+                graphics.Flush();
+            }
 
-			graphics.Flush();
-			graphics.Dispose();
-
-			debugBmp.Save(_font + "-DEBUG.png", ImageFormat.Png);
+            debugBmp.Save(_font + "-DEBUG.png", ImageFormat.Png);
 #endif
 
             var initialBitmapData = initialBmp.LockBits(new Rectangle(0, 0, initialBmp.Width, initialBmp.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
